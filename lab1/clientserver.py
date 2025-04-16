@@ -11,6 +11,12 @@ from context import lab_logging
 lab_logging.setup(stream_level=logging.INFO)  # init loging channels for the lab
 
 # pylint: disable=logging-not-lazy, line-too-long
+telephoneBook = {
+    "Lili":"0123 456789",
+    "Lara":"1234 567890",
+    "Kyra":"2345 678901",
+    "Sebbe":"3456 789012"
+}
 
 class Server:
     """ The server """
@@ -35,12 +41,33 @@ class Server:
                     data = connection.recv(1024)  # receive data from client
                     if not data:
                         break  # stop if client stopped
-                    connection.send(data + "*".encode('ascii'))  # return sent data plus an "*"
+                    # connection.send(data + "*".encode('ascii'))  # return sent data plus an "*"
+                    connection.send((Server.requestHandler(self, data)).encode('ascii')) # !!NEU!! ruft die methode auf die aus der data die entsprechenden aufrufe auf das telefonbich macht
                 connection.close()  # close the connection
             except socket.timeout:
                 pass  # ignore timeouts
         self.sock.close()
         self._logger.info("Server down.")
+    
+
+    #neue methode die auf das telefonbuch zugreift, jenachdem wie die decoded data aussieht
+
+    def requestHandler(self, data):
+        decodedData = data.decode('ascii')
+        if decodedData.startswith("GET "):
+            name = decodedData[4:]
+            if name in telephoneBook:
+                return name + ": " + telephoneBook[name]
+            else:
+                return "Name not in telephonebook"
+        elif decodedData.startswith("GETALL"):
+            allEntries = ""
+            for names, number in telephoneBook.items():
+                allEntries = allEntries + names + ": " + number + "\n"
+            return allEntries
+        else:
+            return "Command not found"
+            
 
 
 class Client:
@@ -52,7 +79,7 @@ class Client:
         self.sock.connect((const_cs.HOST, const_cs.PORT))
         self.logger.info("Client connected to socket " + str(self.sock))
 
-    def call(self, msg_in="Hello, world"):
+    def call(self, msg_in):
         """ Call server """
         self.sock.send(msg_in.encode('ascii'))  # send encoded string as data
         data = self.sock.recv(1024)  # receive the response
